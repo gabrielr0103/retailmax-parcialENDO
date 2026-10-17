@@ -1,0 +1,43 @@
+// Integración continua del modelo de ventas.
+// Corre en cada PR hacia develop o main con las mismas etapas que .github/workflows/ci.yml.
+pipeline {
+    agent { docker { image 'python:3.12-slim' } }
+
+    options {
+        timestamps()
+        timeout(time: 20, unit: 'MINUTES')
+    }
+
+    environment {
+        RETAILMAX_ENTORNO = 'dev'
+    }
+
+    stages {
+        stage('Instalar dependencias') {
+            steps {
+                sh 'pip install --no-cache-dir -r requirements.txt'
+            }
+        }
+        stage('Lint') {
+            steps {
+                sh 'ruff check .'
+            }
+        }
+        stage('Pruebas unitarias') {
+            steps {
+                sh 'pytest -q --junitxml=reportes/pytest.xml'
+            }
+        }
+        stage('Pruebas de datos') {
+            steps {
+                sh 'python -m src.validar_datos'
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: 'reportes/pytest.xml'
+        }
+    }
+}
