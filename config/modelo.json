@@ -1,0 +1,8 @@
+{
+  "algoritmo": "Ridge",
+  "hiperparametros": {
+    "alpha": 1.0
+  },
+  "rezagos": [1, 2, 4],
+  "ventana_media_movil": 4
+}

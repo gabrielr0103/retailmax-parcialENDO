@@ -1,0 +1,16 @@
+# Entorno QA/Staging: copia de producción con datos personales enmascarados
+entorno: qa
+datos:
+  # dvc pull trae aquí la versión exacta registrada en data/raw/ventas_semanales.csv.dvc
+  ruta_ventas: data/raw/ventas_semanales.csv
+  bucket: retailmax-staging-datos
+base_datos:
+  host: retailmax-staging-bd.internal
+  nombre: retailmax_staging
+calidad:
+  max_nulos: 0.10
+  paises_validos: [CO, MX, PE, CL, AR]
+  categorias_validas: [tecnologia, hogar, moda]
+modelo:
+  semanas_validacion: 6
+  mape_maximo: 0.15
