@@ -1,0 +1,2 @@
+# Archivos que DVC no debe revisar al calcular hashes.
+.DS_Store

@@ -1,0 +1,13 @@
+# Definición maestra de "cliente activo" (ejercicio 7 de la parte práctica)
+entidad: Cliente
+atributo: cliente_activo
+version: 1
+vigente_desde: "2026-10-16"
+definicion: >
+  Persona o empresa con al menos una compra pagada en cualquier canal
+  (tienda física o e-commerce) en los últimos 90 días, contada por id maestro.
+ventana_dias: 90
+canales: [tienda, ecommerce]
+data_owner: Director comercial (CRM)
+aprobacion: pull request revisado por el data steward y aprobado por el data owner
+historial: []

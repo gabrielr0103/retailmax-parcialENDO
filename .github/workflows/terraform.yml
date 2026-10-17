@@ -1,0 +1,78 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+
+env:
+  TF_VERSION: 1.12.2
+
+defaults:
+  run:
+    working-directory: infra/terraform
+
+jobs:
+  validar:
+    name: Formato y sintaxis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Instalar Terraform
+        run: |
+          curl -sSLo /tmp/terraform.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+          sudo unzip -o /tmp/terraform.zip terraform -d /usr/local/bin
+      - name: Formato
+        run: terraform fmt -check -recursive
+      - name: Inicializar sin backend
+        run: terraform init -backend=false -input=false
+      - name: Validar sintaxis
+        run: terraform validate
+
+  plan:
+    name: Plan ${{ matrix.entorno }}
+    needs: validar
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        entorno: [dev, qa, prod]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Instalar Terraform
+        run: |
+          curl -sSLo /tmp/terraform.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+          sudo unzip -o /tmp/terraform.zip terraform -d /usr/local/bin
+      - name: Inicializar sin backend
+        run: terraform init -backend=false -input=false
+      - name: Plan contra AWS simulado y pruebas del entorno
+        env:
+          TF_WORKSPACE: ${{ matrix.entorno }}
+        run: >
+          terraform test
+          -filter=tests/${{ matrix.entorno }}.tftest.hcl
+          -var-file=envs/${{ matrix.entorno }}.tfvars
+
+  aplicar:
+    name: Apply ${{ matrix.entorno }}
+    if: github.event_name == 'push'
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.entorno == 'prod' && 'produccion' || matrix.entorno == 'qa' && 'staging' || 'dev' }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        entorno: [dev, qa, prod]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply (simulado, el taller no tiene credenciales de AWS)
+        run: |
+          echo "terraform init"
+          echo "terraform workspace select ${{ matrix.entorno }}"
+          echo "terraform apply -var-file=envs/${{ matrix.entorno }}.tfvars"

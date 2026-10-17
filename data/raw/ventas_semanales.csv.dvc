@@ -1,0 +1,5 @@
+outs:
+- md5: aa36252fb1d43190320f9bb8554bcfd0
+  size: 211120
+  hash: md5
+  path: ventas_semanales.csv

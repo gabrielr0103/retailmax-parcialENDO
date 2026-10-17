@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Notebooks: en Git va la versión exportada en .py, no las salidas
+*.ipynb
+.ipynb_checkpoints/
+
+# Datos crudos: los versiona DVC, en Git solo queda el archivo .dvc
+data/raw/*
+!data/raw/*.dvc
+
+# Artefactos que produce el pipeline
+artefactos/
+reportes/
+*.joblib
+*.pkl
+
+# Secretos y credenciales
+.env
+*.pem
+.aws/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Sistema
+.DS_Store
