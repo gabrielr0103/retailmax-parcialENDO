@@ -1,36 +1,54 @@
-// Integración continua del modelo de ventas.
-// Corre en cada PR hacia develop o main con las mismas etapas que .github/workflows/ci.yml.
+// CI/CD del modelo de predicción de ventas, con las mismas etapas que .github/workflows/cd.yml.
+// En develop llega hasta staging. Producción solo corre en main y espera la aprobación de una persona.
 pipeline {
     agent { docker { image 'python:3.12-slim' } }
 
     options {
         timestamps()
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     environment {
-        RETAILMAX_ENTORNO = 'dev'
+        VERSION_MODELO        = "1.0.${env.BUILD_NUMBER}"
+        RETAILMAX_ENTORNO     = 'prod'
+        RETAILMAX_RUTA_VENTAS = 'data/muestra/ventas_muestra.csv'
+        PAQUETE               = "dist/modelo_ventas-1.0.${env.BUILD_NUMBER}.tar.gz"
     }
 
     stages {
-        stage('Instalar dependencias') {
+        stage('Build & Test') {
             steps {
                 sh 'pip install --no-cache-dir -r requirements.txt'
-            }
-        }
-        stage('Lint') {
-            steps {
                 sh 'ruff check .'
-            }
-        }
-        stage('Pruebas unitarias') {
-            steps {
                 sh 'pytest -q --junitxml=reportes/pytest.xml'
             }
         }
-        stage('Pruebas de datos') {
+        stage('Test de Datos') {
             steps {
                 sh 'python -m src.validar_datos'
+            }
+        }
+        stage('Train & Validate') {
+            steps {
+                sh 'python -m src.entrenar'
+            }
+        }
+        stage('Empaquetado') {
+            steps {
+                sh 'python -m src.empaquetar'
+                archiveArtifacts artifacts: 'dist/*', fingerprint: true
+            }
+        }
+        stage('Despliegue en Staging') {
+            steps {
+                sh 'python -m src.desplegar --entorno qa --paquete "$PAQUETE"'
+            }
+        }
+        stage('Despliegue en Producción') {
+            when { branch 'main' }
+            steps {
+                input message: '¿Desplegar el modelo en producción?', ok: 'Desplegar'
+                sh 'python -m src.desplegar --entorno prod --paquete "$PAQUETE"'
             }
         }
     }
