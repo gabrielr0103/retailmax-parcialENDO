@@ -9,7 +9,7 @@ RetailMax vende en tiendas físicas y por e-commerce en Colombia, México, Perú
 
 ```
 retailmax-parcialENDO/
-├── src/                      código del pipeline (extraer, validar, features, entrenar)
+├── src/                      código del pipeline (extraer, validar, entrenar, empaquetar, desplegar)
 ├── notebooks/                notebooks exportados a .py con jupytext
 ├── sql/                      consulta de extracción
 │   └── migraciones/          cambios de esquema numerados (V001, V002) y su reversa (U002)
@@ -17,7 +17,7 @@ retailmax-parcialENDO/
 ├── mdm/                      definición maestra de cliente activo
 ├── pipelines/
 │   ├── airflow/dags/         DAG semanal de reentrenamiento
-│   └── jenkins/Jenkinsfile   el mismo CI para quien use Jenkins
+│   └── jenkins/Jenkinsfile   el mismo CI/CD para quien use Jenkins
 ├── infra/terraform/          un solo código para dev, qa y prod, con pruebas por entorno
 ├── data/
 │   ├── raw/                  solo el puntero .dvc; el CSV vive en el remoto de DVC
@@ -25,7 +25,7 @@ retailmax-parcialENDO/
 │   └── procedencia/          una ficha YAML por dataset
 ├── scripts/                  generador de la muestra
 ├── tests/                    pruebas unitarias y de datos
-├── .github/                  workflows de CI y Terraform, plantilla de PR y CODEOWNERS
+├── .github/                  workflows de CI, CD y Terraform, plantilla de PR y CODEOWNERS
 ├── dvc.yaml                  etapas validar y entrenar para dvc repro
 └── evidencias/               capturas del taller
 ```
@@ -48,7 +48,7 @@ retailmax-parcialENDO/
 | Qué | Por qué | Dónde queda |
 |---|---|---|
 | Datos crudos (`data/raw/*.csv`) | Pesan, cambian cada semana y Git guardaría una copia completa por versión. | Remoto de DVC en S3. |
-| Modelos entrenados (`*.joblib`, `*.pkl`) y métricas | Se regeneran con el código y los datos de un commit. Son binarios, así que el diff no dice nada. | Registro de artefactos, en la etapa de empaquetado. |
+| Modelos entrenados (`*.joblib`, `*.pkl`), métricas y paquetes (`dist/`) | Se regeneran con el código y los datos de un commit. Son binarios, así que el diff no dice nada. | Artefacto del workflow de CD: un .tar.gz con su manifiesto y su hash. |
 | Archivos `.ipynb` | Las salidas guardan pedazos de datos y generan conflictos cada vez que alguien corre el notebook. | En el equipo de quien trabaja. En Git va el .py. |
 | Credenciales (`.env`, llaves, `.aws/`) | Cualquiera con acceso al repo tendría acceso a las bases y a AWS. | Secretos de GitHub Actions, Jenkins o AWS Secrets Manager. |
 | Estado de Terraform (`*.tfstate`) | Guarda IDs de recursos y a veces contraseñas en texto plano. Dos copias locales distintas terminan dañando el entorno. | Backend remoto en S3 con bloqueo. |
@@ -81,6 +81,21 @@ En este taller el remoto `s3://retailmax-dvc-almacen` es simulado. No hay creden
 - `develop` es la rama de integración y recibe PRs desde las ramas `feature/*`.
 - Cada cambio va en su propia rama `feature/*`. El PR hacia `develop` necesita los tres checks del CI en verde y una revisión.
 
+## Pipeline de CD
+
+`.github/workflows/cd.yml` corre en cada push a `develop` y a `main`. Si una etapa falla, las siguientes no arrancan.
+
+| Etapa | Qué hace |
+|---|---|
+| Build & Test | Instala dependencias, corre ruff y las pruebas unitarias. |
+| Test de Datos | Valida esquema y calidad con las reglas de `config/prod.yaml`. |
+| Train & Validate | Entrena y solo sigue si el MAPE es menor que el máximo de prod y que la línea base. |
+| Empaquetado | Arma `modelo_ventas-<versión>.tar.gz` con el modelo, las métricas y un manifiesto (commit, hash de los datos, hiperparámetros), más un `.sha256`. |
+| Despliegue en Staging | Revisa el hash, carga el modelo, hace una prueba de humo y lo publica en el bucket de staging. |
+| Despliegue en Producción | Lo mismo en prod. Solo corre desde `main` y espera la aprobación de un revisor del entorno `produccion`. |
+
+La copia a S3 es simulada porque el taller no tiene credenciales de AWS; el resto se ejecuta de verdad. Como no hay acceso al remoto de DVC, el pipeline valida y entrena la muestra con los umbrales de prod. `pipelines/jenkins/Jenkinsfile` tiene las mismas seis etapas, con un `input` antes de producción.
+
 ## Cómo correrlo
 
 Con Python 3.12:
@@ -93,6 +108,8 @@ ruff check .
 pytest -q
 python -m src.validar_datos
 python -m src.entrenar
+python -m src.empaquetar
+python -m src.desplegar --entorno qa --paquete dist/modelo_ventas-0.0.0-local.tar.gz
 ```
 
 Por defecto usa `config/dev.yaml` y la muestra. Para otro entorno: `RETAILMAX_ENTORNO=qa python -m src.entrenar`.
@@ -107,3 +124,4 @@ Por defecto usa `config/dev.yaml` y la muestra. Para otro entorno: `RETAILMAX_EN
 | 11. Terraform | `infra/terraform/main.tf` |
 | 12. Replicar entornos idénticos | `infra/terraform/README.md` |
 | 13. Flujo de trabajo de IaC | `.github/workflows/terraform.yml` |
+| 14. Pipeline de CD del modelo | `.github/workflows/cd.yml` y `pipelines/jenkins/Jenkinsfile` |

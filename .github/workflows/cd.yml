@@ -1,0 +1,123 @@
+name: CD modelo de ventas
+
+# develop llega hasta staging. main sigue a producción, que espera la aprobación
+# de un revisor configurado en el entorno "produccion" del repositorio.
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+env:
+  VERSION_MODELO: 1.0.${{ github.run_number }}
+  RETAILMAX_ENTORNO: prod
+  # Sin acceso al remoto de DVC, el pipeline usa la muestra con las reglas y umbrales de prod
+  RETAILMAX_RUTA_VENTAS: data/muestra/ventas_muestra.csv
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Lint
+        run: ruff check .
+      - name: Pruebas unitarias
+        run: pytest -q
+
+  test-datos:
+    name: Test de Datos
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Esquema y calidad con las reglas de prod
+        run: python -m src.validar_datos
+
+  train-validate:
+    name: Train & Validate
+    needs: test-datos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Entrenar y comparar contra la línea base y el MAPE máximo de prod
+        run: python -m src.entrenar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artefactos
+          path: artefactos/
+
+  empaquetado:
+    name: Empaquetado
+    needs: train-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: artefactos
+          path: artefactos/
+      - name: Crear paquete con manifiesto y hash
+        run: python -m src.empaquetar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: modelo-ventas-${{ env.VERSION_MODELO }}
+          path: dist/
+
+  staging:
+    name: Despliegue en Staging
+    needs: empaquetado
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: modelo-ventas-${{ env.VERSION_MODELO }}
+          path: dist/
+      - name: Verificar hash, prueba de humo y desplegar
+        run: python -m src.desplegar --entorno qa --paquete "dist/modelo_ventas-${VERSION_MODELO}.tar.gz"
+
+  produccion:
+    name: Despliegue en Producción
+    needs: staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: modelo-ventas-${{ env.VERSION_MODELO }}
+          path: dist/
+      - name: Verificar hash, prueba de humo y desplegar
+        run: python -m src.desplegar --entorno prod --paquete "dist/modelo_ventas-${VERSION_MODELO}.tar.gz"

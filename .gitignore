@@ -15,6 +15,7 @@ data/raw/*
 
 # Artefactos que produce el pipeline
 artefactos/
+dist/
 reportes/
 *.joblib
 *.pkl
