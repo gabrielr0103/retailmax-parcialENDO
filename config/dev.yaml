@@ -1,0 +1,15 @@
+# Entorno DEV: cada científico trabaja con la muestra anonimizada
+entorno: dev
+datos:
+  ruta_ventas: data/muestra/ventas_muestra.csv
+  bucket: retailmax-dev-datos
+base_datos:
+  host: localhost
+  nombre: retailmax_dev
+calidad:
+  max_nulos: 0.10
+  paises_validos: [CO, MX, PE, CL, AR]
+  categorias_validas: [tecnologia, hogar, moda]
+modelo:
+  semanas_validacion: 6
+  mape_maximo: 0.15

@@ -1,0 +1,4 @@
+[core]
+    remote = almacen
+['remote "almacen"']
+    url = s3://retailmax-dvc-almacen/ventas
