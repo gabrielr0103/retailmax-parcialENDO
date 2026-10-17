@@ -1,0 +1,21 @@
+# Reentrenamiento en QA/PROD: dvc repro corre solo las etapas cuyas dependencias cambiaron.
+stages:
+  validar:
+    cmd: python -m src.validar_datos
+    deps:
+      - data/raw/ventas_semanales.csv
+      - src/validar_datos.py
+      - config/prod.yaml
+  entrenar:
+    cmd: python -m src.entrenar
+    deps:
+      - data/raw/ventas_semanales.csv
+      - src/features.py
+      - src/entrenar.py
+      - config/modelo.json
+      - config/prod.yaml
+    outs:
+      - artefactos/modelo_ventas.joblib
+    metrics:
+      - artefactos/metricas.json:
+          cache: false

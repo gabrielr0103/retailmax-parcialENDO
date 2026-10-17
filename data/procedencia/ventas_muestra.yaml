@@ -1,0 +1,23 @@
+# Ficha de procedencia de la muestra que usan las pruebas y el CI.
+dataset: ventas_muestra
+descripcion: Muestra sintética con la misma estructura de ventas_semanales
+archivo: data/muestra/ventas_muestra.csv
+md5: a84b15a27182ab634cf854f6dffe4ca3
+filas: 900
+periodo:
+  desde: "2026-01-05"
+  hasta: "2026-07-27"
+
+origen:
+  tipo: Sintético
+  script: scripts/generar_muestra.py
+  semilla: 42
+  como_regenerar: python -m scripts.generar_muestra
+
+contenido: 5 países, 2 tiendas por país, 3 categorías y 30 semanas, con estacionalidad y ruido del 6 %
+
+por_que_va_en_git: >
+  Pesa 34 KB y no tiene información real de clientes ni de ventas, así que el CI
+  la puede usar sin credenciales de AWS.
+
+clasificacion: Pública
