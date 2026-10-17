@@ -8,7 +8,7 @@ RetailMax vende en tiendas físicas y por e-commerce en Colombia, México, Perú
 ## Estructura
 
 ```
-retailmax-dataops/
+retailmax-parcialENDO/
 ├── src/                      código del pipeline (extraer, validar, features, entrenar)
 ├── notebooks/                notebooks exportados a .py con jupytext
 ├── sql/                      consulta de extracción
@@ -18,14 +18,14 @@ retailmax-dataops/
 ├── pipelines/
 │   ├── airflow/dags/         DAG semanal de reentrenamiento
 │   └── jenkins/Jenkinsfile   el mismo CI para quien use Jenkins
-├── infra/terraform/          infraestructura como código
+├── infra/terraform/          un solo código para dev, qa y prod, con pruebas por entorno
 ├── data/
 │   ├── raw/                  solo el puntero .dvc; el CSV vive en el remoto de DVC
 │   ├── muestra/              muestra sintética para pruebas y CI
 │   └── procedencia/          una ficha YAML por dataset
 ├── scripts/                  generador de la muestra
 ├── tests/                    pruebas unitarias y de datos
-├── .github/                  CI, plantilla de PR y CODEOWNERS
+├── .github/                  workflows de CI y Terraform, plantilla de PR y CODEOWNERS
 ├── dvc.yaml                  etapas validar y entrenar para dvc repro
 └── evidencias/               capturas del taller
 ```
@@ -104,3 +104,6 @@ Por defecto usa `config/dev.yaml` y la muestra. Para otro entorno: `RETAILMAX_EN
 | 8. Estructura del repositorio | El árbol de arriba |
 | 9. README de versionamiento | Este archivo |
 | 10. Commit, PR y revisión | Historial de commits, PR hacia `develop` y carpeta `.github/` |
+| 11. Terraform | `infra/terraform/main.tf` |
+| 12. Replicar entornos idénticos | `infra/terraform/README.md` |
+| 13. Flujo de trabajo de IaC | `.github/workflows/terraform.yml` |
